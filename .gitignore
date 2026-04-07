@@ -1,0 +1,20 @@
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Maven / Spring Boot build
+adega-stock-system/target/
+adega-stock-system/.mvn/wrapper/maven-wrapper.jar
+
+# Node / React
+adega-frontend/node_modules/
+adega-frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
