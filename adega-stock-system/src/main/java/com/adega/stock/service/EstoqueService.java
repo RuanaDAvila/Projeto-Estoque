@@ -73,6 +73,7 @@ public class EstoqueService {
 
     public List<SaldoEstoqueDTO> listarSaldos() {
         return produtoRepository.findAll().stream()
+                .filter(p -> p.getTipo() == com.adega.stock.entity.TipoProduto.SIMPLES)
                 .map(this::toSaldoDTO)
                 .collect(Collectors.toList());
     }

@@ -3,6 +3,7 @@ package com.adega.stock.service;
 import com.adega.stock.dto.VendaDTO;
 import com.adega.stock.dto.VendaItemDTO;
 import com.adega.stock.entity.*;
+import com.adega.stock.entity.TipoProduto;
 import com.adega.stock.repository.MovimentacaoEstoqueRepository;
 import com.adega.stock.repository.ProdutoRepository;
 import com.adega.stock.repository.VendaRepository;
@@ -50,6 +51,11 @@ public class VendaService {
             }
         }
 
+        // Aplica desconto se informado
+        if (dto.getDesconto() != null && dto.getDesconto().compareTo(BigDecimal.ZERO) > 0) {
+            valorTotal = valorTotal.subtract(dto.getDesconto()).max(BigDecimal.ZERO);
+        }
+
         venda.setValorTotal(valorTotal);
         venda.setItens(itens);
         Venda vendaSalva = vendaRepository.save(venda);
@@ -63,6 +69,40 @@ public class VendaService {
 
     private VendaItem processarVendaProduto(VendaItemDTO itemDTO, Venda venda) {
         Produto produto = produtoService.findById(itemDTO.getProdutoId());
+
+        // Produto composto: descontar cada componente do estoque
+        if (produto.getTipo() == TipoProduto.COMPOSTO) {
+            for (ProdutoComponente comp : produto.getComponentes()) {
+                Produto filho = comp.getProdutoFilho();
+                BigDecimal qtdBaixar = comp.getQuantidade().multiply(itemDTO.getQuantidade());
+                if (filho.getQuantidadeAtual().compareTo(qtdBaixar) < 0) {
+                    throw new IllegalArgumentException(
+                        "Estoque insuficiente de \"" + filho.getNome() + "\" para o kit \"" + produto.getNome() + "\". Disponível: " + filho.getQuantidadeAtual()
+                    );
+                }
+                filho.setQuantidadeAtual(filho.getQuantidadeAtual().subtract(qtdBaixar));
+                produtoRepository.save(filho);
+
+                movimentacaoRepository.save(MovimentacaoEstoque.builder()
+                        .produto(filho)
+                        .quantidade(qtdBaixar)
+                        .tipo(TipoMovimentacao.VENDA)
+                        .valorUnitarioCusto(filho.getValorCusto())
+                        .valorUnitarioVenda(filho.getValorVenda())
+                        .valorTotal(filho.getValorVenda().multiply(qtdBaixar))
+                        .venda(venda)
+                        .motivo("Consumo do kit: " + produto.getNome())
+                        .build());
+            }
+            return VendaItem.builder()
+                    .venda(venda).produto(produto)
+                    .quantidade(itemDTO.getQuantidade())
+                    .valorUnitarioVenda(produto.getValorVenda())
+                    .valorUnitarioCusto(produto.getValorCusto())
+                    .fracionado(false)
+                    .build();
+        }
+
         // fracionado = true significa que o cliente está comprando uma fração do produto
         // Ex: comprar 3 doses de uma garrafa, em vez de comprar a garrafa inteira
         boolean fracionado = itemDTO.isFracionado();

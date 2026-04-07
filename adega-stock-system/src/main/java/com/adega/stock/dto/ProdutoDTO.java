@@ -1,10 +1,12 @@
 package com.adega.stock.dto;
 
+import com.adega.stock.entity.TipoProduto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Setter
@@ -20,6 +22,13 @@ public class ProdutoDTO {
     @NotBlank
     @Schema(description = "Nome do produto", example = "Whisky Jack Daniels 1L", requiredMode = Schema.RequiredMode.REQUIRED)
     private String nome;
+
+    @Schema(description = "Tipo do produto: SIMPLES ou COMPOSTO")
+    @Builder.Default
+    private TipoProduto tipo = TipoProduto.SIMPLES;
+
+    @Schema(description = "Componentes (somente para produto COMPOSTO)")
+    private List<ProdutoComponenteDTO> componentes;
 
     @Schema(description = "Unidade de estoque (garrafa, dose, maco, etc)", example = "garrafa")
     private String unidadeEstoque;

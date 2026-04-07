@@ -29,6 +29,9 @@ public class VendaDTO {
     @Schema(description = "Observacao da venda", example = "Mesa 5")
     private String observacao;
 
+    @Schema(description = "Valor de desconto aplicado na venda", example = "5.00")
+    private BigDecimal desconto;
+
     @Valid
     @NotEmpty
     @Schema(description = "Itens vendidos", requiredMode = Schema.RequiredMode.REQUIRED)

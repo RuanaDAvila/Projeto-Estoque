@@ -5,12 +5,12 @@ export default function Navbar() {
     <aside className="sidebar">
       <h1>🍷 Adega Stock</h1>
       <nav>
-        <NavLink to="/categorias">Categorias</NavLink>
-        <NavLink to="/produtos">Produtos</NavLink>
-        <NavLink to="/combos">Combos</NavLink>
-        <NavLink to="/estoque">Estoque</NavLink>
-        <NavLink to="/vendas">Vendas</NavLink>
-        <NavLink to="/movimentacoes">Histórico</NavLink>
+        <NavLink to="/pdv">🛒 PDV</NavLink>
+        <NavLink to="/produtos">📦 Produtos</NavLink>
+        <NavLink to="/categorias">🏷️ Categorias</NavLink>
+        <NavLink to="/estoque">📊 Estoque</NavLink>
+        <NavLink to="/vendas">💰 Vendas</NavLink>
+        <NavLink to="/movimentacoes">📋 Histórico</NavLink>
       </nav>
     </aside>
   )

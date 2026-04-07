@@ -5,6 +5,8 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "produtos")
@@ -22,6 +24,15 @@ public class Produto {
     @NotBlank
     @Column(nullable = false)
     private String nome;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private TipoProduto tipo = TipoProduto.SIMPLES;
+
+    @OneToMany(mappedBy = "produtoPai", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProdutoComponente> componentes = new ArrayList<>();
 
     @Column
     private String unidadeEstoque;
