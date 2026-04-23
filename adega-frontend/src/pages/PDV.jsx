@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
+import Numpad from '../components/Numpad'
 
 export default function PDV() {
   const [produtos, setProdutos] = useState([])
@@ -11,6 +12,7 @@ export default function PDV() {
   const [tipoDesconto, setTipoDesconto] = useState('R$')
   const [modalPagamento, setModalPagamento] = useState(false)
   const [pagamentos, setPagamentos] = useState([{ metodo: 'Dinheiro', valor: '' }])
+  const [numpadMap, setNumpadMap] = useState({})
   const [recebido, setRecebido] = useState('')
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
@@ -25,7 +27,6 @@ export default function PDV() {
     setCategorias(c)
   }
 
-  // Filtra produtos: só simples e compostos, aplica busca e categoria
   const produtosFiltrados = produtos.filter(p => {
     const nomeOk = p.nome.toLowerCase().includes(busca.toLowerCase())
     const catOk = !categoriaSelecionada || p.categoriaId === categoriaSelecionada
@@ -66,6 +67,7 @@ export default function PDV() {
     setCarrinho([])
     setDesconto('')
     setPagamentos([{ metodo: 'Dinheiro', valor: '' }])
+    setNumpadMap({})
     setRecebido('')
   }
 
@@ -82,26 +84,45 @@ export default function PDV() {
 
   const totalPago = pagamentos.reduce((acc, p) => acc + (Number(p.valor) || 0), 0)
   const troco = Math.max(0, totalPago - total)
+  const falta = total > 0 ? Math.max(0, total - totalPago) : 0
+
+  function handleNumpadChange(idx, digits) {
+    setNumpadMap(prev => ({ ...prev, [idx]: digits }))
+    const valor = (Number(digits || '0') / 100).toFixed(2)
+    setPagamentos(prev => {
+      const novos = [...prev]
+      novos[idx] = { ...novos[idx], valor }
+      return novos
+    })
+  }
 
   function adicionarFormaPagamento() {
-    setPagamentos([...pagamentos, { metodo: 'Dinheiro', valor: '' }])
+    const newIdx = pagamentos.length
+    setPagamentos(prev => [...prev, { metodo: 'Dinheiro', valor: '' }])
+    setNumpadMap(prev => ({ ...prev, [newIdx]: '' }))
   }
 
   function removerFormaPagamento(i) {
-    setPagamentos(pagamentos.filter((_, idx) => idx !== i))
+    setPagamentos(prev => prev.filter((_, idx) => idx !== i))
   }
 
   function atualizarPagamento(i, campo, valor) {
-    const novos = [...pagamentos]
-    novos[i][campo] = valor
-    setPagamentos(novos)
+    setPagamentos(prev => {
+      const novos = [...prev]
+      novos[i] = { ...novos[i], [campo]: valor }
+      return novos
+    })
+    if (campo === 'metodo' && valor === 'Dinheiro') {
+      setNumpadMap(prev => ({ ...prev, [i]: '' }))
+    }
   }
 
   function abrirPagamento() {
     if (carrinho.length === 0) { setErro('Adicione produtos ao carrinho.'); return }
     setErro('')
-    // Preenche automaticamente o valor com o total
+    const initialDigits = String(Math.round(total * 100))
     setPagamentos([{ metodo: 'Dinheiro', valor: total.toFixed(2) }])
+    setNumpadMap({ 0: initialDigits })
     setRecebido(total.toFixed(2))
     setModalPagamento(true)
   }
@@ -139,7 +160,6 @@ export default function PDV() {
 
         {sucesso && <div className="sucesso" style={{ marginBottom: 8 }}>{sucesso}</div>}
 
-        {/* Barra de busca */}
         <input
           placeholder="🔍 Buscar produto..."
           value={busca}
@@ -147,7 +167,6 @@ export default function PDV() {
           style={{ marginBottom: 10, fontSize: 16 }}
         />
 
-        {/* Filtro de categorias */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <button
             onClick={() => setCategoriaSelecionada(null)}
@@ -173,7 +192,6 @@ export default function PDV() {
           ))}
         </div>
 
-        {/* Grade de produtos */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
@@ -219,7 +237,6 @@ export default function PDV() {
         display: 'flex', flexDirection: 'column', overflow: 'hidden'
       }}>
 
-        {/* Cabeçalho carrinho */}
         <div style={{ background: '#1a3a6b', color: 'white', padding: '14px 16px', fontWeight: 700, fontSize: 17 }}>
           🛒 Carrinho
           {carrinho.length > 0 && (
@@ -230,7 +247,6 @@ export default function PDV() {
           )}
         </div>
 
-        {/* Itens do carrinho */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
           {carrinho.length === 0 && (
             <div style={{ textAlign: 'center', color: '#aaa', padding: 32, fontSize: 15 }}>
@@ -270,10 +286,8 @@ export default function PDV() {
           ))}
         </div>
 
-        {/* Rodapé — desconto e total */}
         <div style={{ borderTop: '2px solid #eee', padding: 12 }}>
 
-          {/* Desconto */}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
             <select value={tipoDesconto} onChange={e => setTipoDesconto(e.target.value)}
               style={{ width: 60, marginBottom: 0, padding: '6px 4px', fontSize: 14 }}>
@@ -287,7 +301,6 @@ export default function PDV() {
             />
           </div>
 
-          {/* Totais */}
           <div style={{ fontSize: 14, color: '#555', marginBottom: 4 }}>
             Subtotal: <strong>R$ {subtotal.toFixed(2)}</strong>
           </div>
@@ -312,33 +325,42 @@ export default function PDV() {
       {/* MODAL DE PAGAMENTO */}
       {modalPagamento && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: 420 }}>
+          <div className="modal" style={{ width: 460, maxHeight: '90vh', overflowY: 'auto' }}>
             <h3>💳 Pagamento</h3>
 
             <div style={{ background: '#f0f4ff', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-              <div style={{ fontSize: 15, color: '#555' }}>Total a pagar</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a6b' }}>R$ {total.toFixed(2)}</div>
+              <div style={{ fontSize: 14, color: '#555' }}>Total a pagar</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#1a3a6b' }}>R$ {total.toFixed(2)}</div>
             </div>
 
             {erro && <div className="erro">{erro}</div>}
 
-            {/* Formas de pagamento */}
             <label>Formas de Pagamento</label>
             {pagamentos.map((pag, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                <select value={pag.metodo} onChange={e => atualizarPagamento(i, 'metodo', e.target.value)}
-                  style={{ flex: 1, marginBottom: 0 }}>
-                  <option>Dinheiro</option>
-                  <option>Cartão Débito</option>
-                  <option>Cartão Crédito</option>
-                  <option>Pix</option>
-                </select>
-                <input type="number" step="0.01" placeholder="R$ 0,00"
-                  value={pag.valor} onChange={e => atualizarPagamento(i, 'valor', e.target.value)}
-                  style={{ flex: 1, marginBottom: 0 }} />
-                {pagamentos.length > 1 && (
-                  <button onClick={() => removerFormaPagamento(i)}
-                    style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 18 }}>✕</button>
+              <div key={i} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select value={pag.metodo} onChange={e => atualizarPagamento(i, 'metodo', e.target.value)}
+                    style={{ flex: 1, marginBottom: 0 }}>
+                    <option>Dinheiro</option>
+                    <option>Cartão Débito</option>
+                    <option>Cartão Crédito</option>
+                    <option>Pix</option>
+                  </select>
+                  {pag.metodo !== 'Dinheiro' && (
+                    <input type="number" step="0.01" placeholder="R$ 0,00"
+                      value={pag.valor} onChange={e => atualizarPagamento(i, 'valor', e.target.value)}
+                      style={{ flex: 1, marginBottom: 0 }} />
+                  )}
+                  {pagamentos.length > 1 && (
+                    <button onClick={() => removerFormaPagamento(i)}
+                      style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 18 }}>✕</button>
+                  )}
+                </div>
+                {pag.metodo === 'Dinheiro' && (
+                  <Numpad
+                    digits={numpadMap[i] ?? ''}
+                    onChange={digits => handleNumpadChange(i, digits)}
+                  />
                 )}
               </div>
             ))}
@@ -349,21 +371,25 @@ export default function PDV() {
               fontWeight: 600, fontSize: 14, marginBottom: 12
             }}>+ Dividir pagamento</button>
 
-            {/* Resumo do pagamento */}
             <div style={{ background: '#f8f9ff', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 15 }}>
+                <span style={{ color: '#555' }}>Total da venda:</span>
+                <strong>R$ {total.toFixed(2)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 15 }}>
                 <span style={{ color: '#555' }}>Total pago:</span>
                 <strong>R$ {totalPago.toFixed(2)}</strong>
               </div>
               {troco > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1e7e34' }}>
-                  <span style={{ fontWeight: 700 }}>Troco:</span>
-                  <strong style={{ fontSize: 18 }}>R$ {troco.toFixed(2)}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1e7e34', fontWeight: 700, fontSize: 17 }}>
+                  <span>Troco:</span>
+                  <strong>R$ {troco.toFixed(2)}</strong>
                 </div>
               )}
-              {totalPago > 0 && totalPago < total && (
-                <div style={{ color: '#c0392b', fontWeight: 600, marginTop: 4 }}>
-                  Falta: R$ {(total - totalPago).toFixed(2)}
+              {falta > 0 && totalPago > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#c0392b', fontWeight: 600 }}>
+                  <span>Falta:</span>
+                  <strong>R$ {falta.toFixed(2)}</strong>
                 </div>
               )}
             </div>
